@@ -3,12 +3,15 @@ extern crate graphics;
 extern crate glutin_window;
 extern crate opengl_graphics;
 
+use std::char;
+use std::error::Error;
 use std::process;
 use piston::window::WindowSettings;
 use piston::event_loop::{ Events, EventSettings };
 use piston::input::{ Button, Key, PressEvent, ReleaseEvent, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent };
 use glutin_window::GlutinWindow;
-use opengl_graphics::{ GlGraphics, OpenGL };
+use graphics::character::CharacterCache;
+use opengl_graphics::{ Filter, GlGraphics, GlyphCache, OpenGL, TextureSettings };
 
 pub struct App {
     gl: GlGraphics,
@@ -25,7 +28,7 @@ pub struct App {
 }
 
 impl App {
-    fn render(&mut self, args: &RenderArgs) {
+    fn render(&mut self, args: &RenderArgs, glyphs: &mut GlyphCache) -> Result<(), Box<Error>> {
         use graphics::*;
 
         const BG: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
@@ -38,6 +41,15 @@ impl App {
         let ball = rectangle::square(0.0, 0.0, 10.0);
         let ballx = self.ballx as f64;
         let bally = self.bally as f64;
+        let left_char = match char::from_digit(self.leftscore as u32, 10) {
+            Some(c) => c,
+            None => ' '
+        };
+        let right_char = match char::from_digit(self.rightscore as u32, 10) {
+            Some(c) => c,
+            None => ' '
+        };
+        let score = Image::new_color(FG);
         self.gl.draw(args.viewport(), |c, gl| {
             clear(BG, gl);
             rectangle(FG, left, c.transform
@@ -48,7 +60,20 @@ impl App {
                 .trans(
                     ballx,
                     bally), gl);
+            if let Ok(left_character) = glyphs.character(36, left_char) {
+                score.draw(left_character.texture,
+                    &c.draw_state,
+                    c.transform.trans(20.0, 20.0),
+                    gl);
+            }
+            if let Ok(right_character) = glyphs.character(36, right_char) {
+                score.draw(right_character.texture,
+                    &c.draw_state,
+                    c.transform.trans(475.0, 20.0),
+                    gl);
+            }
         });
+        Ok(())
     }
 
     fn update(&mut self, _args: &UpdateArgs) {
@@ -65,7 +90,6 @@ impl App {
             self.velx = - self.velx;
             if self.bally < self.rightpos || self.bally > self.rightpos + 50 {
                 self.leftscore += 1;
-                println!("Left point! {} vs {}", self.leftscore, self.rightscore);
                 if self.leftscore >= 5 {
                     println!("Left wins!");
                     process::exit(0);
@@ -78,7 +102,6 @@ impl App {
             self.velx = - self.velx;
             if self.bally < self.leftpos || self.bally > self.leftpos + 50 {
                 self.rightscore += 1;
-                println!("Right point! {} vs {}", self.leftscore, self.rightscore);
                 if self.rightscore >= 5 {
                     println!("Right wins!");
                     process::exit(0);
@@ -143,13 +166,18 @@ fn main() {
         .build()
         .unwrap();
 
+    let texture_settings = TextureSettings::new().filter(Filter::Nearest);
+    let ref mut glyphs = GlyphCache::new("src/FiraMono-Regular.ttf", (), texture_settings)
+        .expect("Could not load font");
+
+
     let mut app = App {
         gl: GlGraphics::new(opengl),
         leftscore: 0,
-        leftpos: 1,
+        leftpos: 146,
         leftvel: 0,
         rightscore: 0,
-        rightpos: 1,
+        rightpos: 146,
         rightvel: 0,
         ballx: 0,
         bally: 0,
@@ -160,7 +188,9 @@ fn main() {
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
         if let Some(r) = e.render_args() {
-            app.render(&r);
+            if let Err(err) = app.render(&r, glyphs) {
+                println!("An error occurred during rendering: {:?}", err);
+            }
         }
 
         if let Some(u) = e.update_args() {
