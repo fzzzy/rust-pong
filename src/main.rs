@@ -4,7 +4,6 @@ extern crate glutin_window;
 extern crate opengl_graphics;
 
 use std::char;
-use std::error::Error;
 use std::process;
 use piston::window::WindowSettings;
 use piston::event_loop::{ Events, EventSettings };
@@ -28,7 +27,7 @@ pub struct App {
 }
 
 impl App {
-    fn render(&mut self, args: &RenderArgs, glyphs: &mut GlyphCache) -> Result<(), Box<Error>> {
+    fn render(&mut self, args: &RenderArgs, glyphs: &mut GlyphCache) {
         use graphics::*;
 
         const BG: [f32; 4] = [0.0, 0.5, 0.5, 1.0];
@@ -73,7 +72,6 @@ impl App {
                     gl);
             }
         });
-        Ok(())
     }
 
     fn update(&mut self, _args: &UpdateArgs) {
@@ -188,9 +186,7 @@ fn main() {
     let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
         if let Some(r) = e.render_args() {
-            if let Err(err) = app.render(&r, glyphs) {
-                println!("An error occurred during rendering: {:?}", err);
-            }
+            app.render(&r, glyphs);
         }
 
         if let Some(u) = e.update_args() {
