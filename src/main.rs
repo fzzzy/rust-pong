@@ -1,3 +1,4 @@
+extern crate music;
 extern crate piston;
 extern crate graphics;
 extern crate glutin_window;
@@ -11,6 +12,16 @@ use piston::input::{ Button, Key, PressEvent, ReleaseEvent, RenderArgs, RenderEv
 use glutin_window::GlutinWindow;
 use graphics::character::CharacterCache;
 use opengl_graphics::{ Filter, GlGraphics, GlyphCache, OpenGL, TextureSettings };
+
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+enum Music {
+}
+
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+enum Sound {
+    Pong,
+    Buzzer,
+}
 
 pub struct App {
     gl: GlGraphics,
@@ -87,6 +98,7 @@ impl App {
         if self.ballx > 502 {
             self.velx = - self.velx;
             if self.bally < self.rightpos || self.bally > self.rightpos + 50 {
+                music::play_sound(&Sound::Buzzer, music::Repeat::Times(0), music::MAX_VOLUME);
                 self.leftscore += 1;
                 if self.leftscore >= 5 {
                     println!("Left wins!");
@@ -94,11 +106,14 @@ impl App {
                 }
                 self.ballx = 256;
                 self.bally = 171;
+            } else {
+                music::play_sound(&Sound::Pong, music::Repeat::Times(0), music::MAX_VOLUME);
             }
         }
         if self.ballx < 1 {
             self.velx = - self.velx;
             if self.bally < self.leftpos || self.bally > self.leftpos + 50 {
+                music::play_sound(&Sound::Buzzer, music::Repeat::Times(0), music::MAX_VOLUME);
                 self.rightscore += 1;
                 if self.rightscore >= 5 {
                     println!("Right wins!");
@@ -106,6 +121,8 @@ impl App {
                 }
                 self.ballx = 256;
                 self.bally = 171;
+            } else {
+                music::play_sound(&Sound::Pong, music::Repeat::Times(0), music::MAX_VOLUME);
             }
         }
         self.bally += self.vely;
@@ -183,23 +200,27 @@ fn main() {
         vely: 1
     };
 
-    let mut events = Events::new(EventSettings::new());
-    while let Some(e) = events.next(&mut window) {
-        if let Some(r) = e.render_args() {
-            app.render(&r, glyphs);
-        }
+    music::start::<Music, Sound, _>(16, || {
+        music::bind_sound_file(Sound::Pong, "src/pong.wav");
+        music::bind_sound_file(Sound::Buzzer, "src/buzzer_x.wav");
+        let mut events = Events::new(EventSettings::new());
+        while let Some(e) = events.next(&mut window) {
+            if let Some(r) = e.render_args() {
+                app.render(&r, glyphs);
+            }
 
-        if let Some(u) = e.update_args() {
-            app.update(&u);
-        }
+            if let Some(u) = e.update_args() {
+                app.update(&u);
+            }
 
-        if let Some(b) = e.press_args() {
-            app.press(&b);
-        }
+            if let Some(b) = e.press_args() {
+                app.press(&b);
+            }
 
-        if let Some(b) = e.release_args() {
-            app.release(&b);
+            if let Some(b) = e.release_args() {
+                app.release(&b);
+            }
         }
-    }
+    });
 }
 
